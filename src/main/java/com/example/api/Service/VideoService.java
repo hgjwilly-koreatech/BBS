@@ -30,12 +30,14 @@ public class VideoService {
     public VideoDTOs.InitResponse initUpload(String userId, VideoDTOs.InitRequest req) {
         String id = UUID.randomUUID().toString();
         String ext = (req.fileExt() == null || req.fileExt().isBlank()) ? "mp4" : req.fileExt().trim();
-        String key = "%s/%s/%s.%s".formatted(prefix, userId, id, ext);
 
-        // DB 저장 (INIT)
+        // ✅ 익명 업로드면 anon 폴더로
+        String owner = (userId == null || userId.isBlank()) ? "anon" : userId;
+        String key = "%s/%s/%s.%s".formatted(prefix, owner, id, ext);
+
         VideoObject v = new VideoObject();
         v.setId(id);
-        v.setUserId(userId);
+        v.setUserId((userId == null || userId.isBlank()) ? null : userId); // ✅ null 저장(익명)
         v.setS3Key(key);
         v.setContentType(req.contentType());
         v.setStatus("INIT");
@@ -43,11 +45,10 @@ public class VideoService {
         v.setUpdatedAt(Instant.now());
         videoRepository.save(v);
 
-        // Presigned PUT 생성
         PutObjectRequest por = PutObjectRequest.builder()
                 .bucket(bucket)
                 .key(key)
-                .contentType(req.contentType())
+                .contentType(req.contentType()) // ⚠️ PUT할 때 Content-Type 동일해야 함
                 .build();
 
         Duration sig = Duration.ofMinutes(presignMinutes);
@@ -58,13 +59,25 @@ public class VideoService {
                 .build();
 
         String uploadUrl = presigner.presignPutObject(presignReq).url().toString();
-
         return new VideoDTOs.InitResponse(id, key, uploadUrl, sig.toSeconds());
     }
 
-    public void completeUpload(String userId, String videoId, VideoDTOs.CompleteRequest req) {
-        VideoObject v = videoRepository.findByIdAndUserId(videoId, userId)
+    public void completeUpload(String userIdOrNull, String videoId, VideoDTOs.CompleteRequest req) {
+        VideoObject v = videoRepository.findById(videoId)
                 .orElseThrow(() -> new IllegalArgumentException("video not found"));
+
+        // ✅ 소유자 규칙
+        // - DB에 userId가 null(익명 업로드)이면: 익명 호출일 때만 complete 허용
+        // - DB에 userId가 있으면: 그 userId로 로그인한 사용자만 complete 허용
+        if (v.getUserId() == null) {
+            if (userIdOrNull != null) {
+                throw new IllegalArgumentException("anonymous upload: complete requires anonymous call");
+            }
+        } else {
+            if (userIdOrNull == null || !v.getUserId().equals(userIdOrNull)) {
+                throw new IllegalArgumentException("not owner");
+            }
+        }
 
         v.setStatus("UPLOADED");
         v.setSizeBytes(req.sizeBytes());
@@ -73,6 +86,7 @@ public class VideoService {
     }
 
     public VideoDTOs.DownloadUrlResponse issueDownloadUrl(String userId, String videoId) {
+        // ✅ 다운로드는 계속 “내 것만” 유지
         VideoObject v = videoRepository.findByIdAndUserId(videoId, userId)
                 .orElseThrow(() -> new IllegalArgumentException("video not found"));
 
@@ -94,7 +108,6 @@ public class VideoService {
                 .build();
 
         String downloadUrl = presigner.presignGetObject(presignReq).url().toString();
-
         return new VideoDTOs.DownloadUrlResponse(v.getId(), v.getS3Key(), downloadUrl, sig.toSeconds());
     }
 }
