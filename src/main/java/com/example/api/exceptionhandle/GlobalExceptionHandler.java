@@ -14,7 +14,7 @@ import java.util.Map;
 
 @Component
 @RestControllerAdvice
-public class exceptionhandle {
+public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
