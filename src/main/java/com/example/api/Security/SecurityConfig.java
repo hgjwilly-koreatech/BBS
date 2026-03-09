@@ -49,41 +49,12 @@ public class SecurityConfig {
         http.cors(Customizer.withDefaults());
 
         http.authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                        "/",
-                        "/health",
-                        "/error",
-                        "/favicon.ico",
-                        "/api",
-                        "/api/",
-                        "/api/health",
-                        "/api/error",
-                        "/api/favicon.ico"
-                ).permitAll()
 
+                    .requestMatchers("/", "/health").permitAll()
                 .requestMatchers("/auth/login", "/auth/signup", "/auth/refresh").permitAll()
-                .requestMatchers(
-                        "/swagger-ui/**",
-                        "/swagger-ui.html",
-                        "/v3/api-docs",
-                        "/v3/api-docs/**",
-                        "/v3/api-docs.yaml",
-                        "/api/swagger-ui/**",
-                        "/api/swagger-ui.html",
-                        "/api/v3/api-docs",
-                        "/api/v3/api-docs/**",
-                        "/api/v3/api-docs.yaml",
-                        "/swagger-resources/**",
-                        "/webjars/**"
-                ).permitAll()
-
-                .requestMatchers(HttpMethod.POST, "/api/videos/init").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/videos/*/complete").permitAll()
-
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
                 .requestMatchers("/auth/logout").authenticated()
-
+                .requestMatchers("/api/videos/**").permitAll()
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .anyRequest().authenticated()
         );
 
