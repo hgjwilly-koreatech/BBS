@@ -44,7 +44,13 @@ public class SecurityConfig {
                 .requestMatchers("/auth/login", "/auth/signup", "/auth/refresh").permitAll()
                 .requestMatchers("/auth/logout").authenticated()
 
-
+                .requestMatchers(
+                        "/auth/**",
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**",
+                        "/swagger-ui.html"
+                ).permitAll()
+                .anyRequest().authenticated()
                 .requestMatchers(HttpMethod.POST, "/api/videos/init").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/videos/*/complete").permitAll()
 
