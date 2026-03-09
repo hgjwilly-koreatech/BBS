@@ -5,6 +5,7 @@ import com.example.api.Service.VideoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,7 +17,12 @@ public class VideoController {
     private final VideoService videoService;
 
     private String userId() {
-        return (String) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth.getPrincipal() == null
+                || "anonymousUser".equals(auth.getPrincipal())) {
+            throw new BadCredentialsException("Authentication required");
+        }
+        return String.valueOf(auth.getPrincipal());
     }
 
     // Jetson: presigned PUT 발급
